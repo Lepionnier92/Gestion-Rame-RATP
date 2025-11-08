@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carte dépôt métro - Horizontal final</title>
+<style>
+  body { background: #1d232a; margin:0; font-family: Arial, sans-serif; color:#fff; }
+  svg { width: 100%; height: 95vh; }
+  .rail { stroke:#888; stroke-width:6; fill:none; }
+  .voie { stroke-width:8; cursor:pointer; transition: stroke 0.3s; }
+  .voie:hover { stroke-width:10; }
+  .OK { stroke:#34d399; }
+  .Maintenance { stroke:#facc15; }
+  .Bloquee { stroke:#ef4444; }
+  .aiguillage { stroke:#aaa; stroke-width:3; fill:none; stroke-dasharray:5 3; }
+  .label { fill:#fff; font-size:14px; text-anchor:middle; }
+  #info { position: fixed; bottom:10px; left:10px; background: rgba(0,0,0,0.7); padding:10px 15px; border-radius:10px; font-size:14px; }
+</style>
+</head>
+<body>
+
+<h1>Carte dépôt métro - Horizontal final</h1>
+
+<svg id="carte" viewBox="0 0 1200 700">
+  <!-- Tunnel à droite -->
+  <rect x="1050" y="150" width="120" height="60" rx="30" fill="#111" stroke="#555" stroke-width="3"/>
+  <text x="1110" y="190" fill="#aaa" font-size="16" text-anchor="middle">Tunnel</text>
+
+  <!-- Voie 1 en haut -->
+  <path id="voie1" class="rail voie OK" d="M100,100 Q400,100 700,100"/> <!-- Voie 1 -->
+  
+  <!-- Aiguillage descendant de 1 vers triple aiguillage -->
+  <path class="aiguillage" d="M400,100 Q400,140 400,180"/>
+  
+  <!-- Voie 10 accessible uniquement depuis 1 -->
+  <path id="voie10" class="rail voie Bloquee" d="M700,100 Q1000,100 1000,150"/> <!-- pas de connexion tunnel -->
+
+  <!-- Triple aiguillage pour voies 2-5 -->
+  <path class="aiguillage" d="M400,180 Q350,220 300,200"/> <!-- vers voie 2 -->
+  <path class="aiguillage" d="M400,180 Q400,220 350,230"/> <!-- vers voie 3 -->
+  <path class="aiguillage" d="M400,180 Q450,220 400,240"/> <!-- vers voies 4-5 -->
+
+  <!-- Rails des voies 2-5 (en dessous) -->
+  <path id="voie2" class="rail voie OK" d="M300,200 Q500,200 900,250"/>
+  <path id="voie3" class="rail voie Maintenance" d="M350,230 Q500,230 900,300"/>
+  <path id="voie4" class="rail voie OK" d="M400,240 Q500,240 900,350"/>
+  <path id="voie5" class="rail voie OK" d="M400,260 Q500,260 900,400"/>
+
+  <!-- Branche droite : voies 6-9 (en dessous) -->
+  <path id="voie6" class="rail voie OK" d="M100,400 Q500,450 900,450"/>
+  <path id="voie7" class="rail voie OK" d="M100,450 Q500,480 900,500"/>
+  <path id="voie8" class="rail voie Maintenance" d="M900,500 Q950,480 1000,460"/>
+  <path id="voie9" class="rail voie Bloquee" d="M900,500 Q950,500 1000,500"/>
+
+  <!-- Labels voies -->
+  <text class="label" x="100" y="95">1</text>
+  <text class="label" x="1000" y="145">10</text>
+  <text class="label" x="300" y="195">2</text>
+  <text class="label" x="350" y="225">3</text>
+  <text class="label" x="400" y="235">4</text>
+  <text class="label" x="400" y="255">5</text>
+  <text class="label" x="100" y="395">6</text>
+  <text class="label" x="100" y="445">7</text>
+  <text class="label" x="1000" y="455">8</text>
+  <text class="label" x="1000" y="495">9</text>
+</svg>
+
+<div id="info">Clique sur une voie pour voir les détails</div>
+
+<script>
+  const info = document.getElementById("info");
+  document.querySelectorAll(".voie").forEach(v => {
+    v.addEventListener("click", () => {
+      let etat = "OK";
+      if(v.classList.contains("Maintenance")) etat="Maintenance";
+      else if(v.classList.contains("Bloquee")) etat="Bloquée";
+      info.textContent = `${v.id} → État : ${etat}`;
+    });
+  });
+</script>
+
+</body>
+</html>
+
+
+Voie1 <---------------\  -----> Voie10
+Voie2 <-------/ <----- \ <----- / ------------ tunnel
+Voie3 <------/         /       /
+Voie4 <---------------/       /
+Voie5 <--------------/       /
+Voie6 <---------------------/     /---------> Voie9
+Voie7 <--------------------/-----/---------> Voie8
