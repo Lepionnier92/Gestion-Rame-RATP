@@ -1,93 +1,622 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Carte dépôt métro - Horizontal final</title>
-<style>
-  body { background: #1d232a; margin:0; font-family: Arial, sans-serif; color:#fff; }
-  svg { width: 100%; height: 95vh; }
-  .rail { stroke:#888; stroke-width:6; fill:none; }
-  .voie { stroke-width:8; cursor:pointer; transition: stroke 0.3s; }
-  .voie:hover { stroke-width:10; }
-  .OK { stroke:#34d399; }
-  .Maintenance { stroke:#facc15; }
-  .Bloquee { stroke:#ef4444; }
-  .aiguillage { stroke:#aaa; stroke-width:3; fill:none; stroke-dasharray:5 3; }
-  .label { fill:#fff; font-size:14px; text-anchor:middle; }
-  #info { position: fixed; bottom:10px; left:10px; background: rgba(0,0,0,0.7); padding:10px 15px; border-radius:10px; font-size:14px; }
-</style>
-</head>
-<body>
 
-<h1>Carte dépôt métro - Horizontal final</h1>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Schéma interactif atelier - rails & aiguillages</title>
+    <style>
+      :root {
+        --bg: #1d232a;
+        --panel: #111418;
+        --muted: #8b939b;
+        --rail: #d9dfe6
+      }
 
-<svg id="carte" viewBox="0 0 1200 700">
-  <!-- Tunnel à droite -->
-  <rect x="1050" y="150" width="120" height="60" rx="30" fill="#111" stroke="#555" stroke-width="3"/>
-  <text x="1110" y="190" fill="#aaa" font-size="16" text-anchor="middle">Tunnel</text>
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: #eee;
+        font-family: Inter, Segoe UI, Arial, Helvetica, sans-serif
+      }
 
-  <!-- Voie 1 en haut -->
-  <path id="voie1" class="rail voie OK" d="M100,100 Q400,100 700,100"/> <!-- Voie 1 -->
-  
-  <!-- Aiguillage descendant de 1 vers triple aiguillage -->
-  <path class="aiguillage" d="M400,100 Q400,140 400,180"/>
-  
-  <!-- Voie 10 accessible uniquement depuis 1 -->
-  <path id="voie10" class="rail voie Bloquee" d="M700,100 Q1000,100 1000,150"/> <!-- pas de connexion tunnel -->
+      .app {
+        display: flex;
+        height: 100vh
+      }
 
-  <!-- Triple aiguillage pour voies 2-5 -->
-  <path class="aiguillage" d="M400,180 Q350,220 300,200"/> <!-- vers voie 2 -->
-  <path class="aiguillage" d="M400,180 Q400,220 350,230"/> <!-- vers voie 3 -->
-  <path class="aiguillage" d="M400,180 Q450,220 400,240"/> <!-- vers voies 4-5 -->
+      .svg-wrap {
+        flex: 1;
+        padding: 16px
+      }
 
-  <!-- Rails des voies 2-5 (en dessous) -->
-  <path id="voie2" class="rail voie OK" d="M300,200 Q500,200 900,250"/>
-  <path id="voie3" class="rail voie Maintenance" d="M350,230 Q500,230 900,300"/>
-  <path id="voie4" class="rail voie OK" d="M400,240 Q500,240 900,350"/>
-  <path id="voie5" class="rail voie OK" d="M400,260 Q500,260 900,400"/>
+      svg {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(180deg, #111418 0%, #15181b 100%);
+        border-radius: 6px
+      }
 
-  <!-- Branche droite : voies 6-9 (en dessous) -->
-  <path id="voie6" class="rail voie OK" d="M100,400 Q500,450 900,450"/>
-  <path id="voie7" class="rail voie OK" d="M100,450 Q500,480 900,500"/>
-  <path id="voie8" class="rail voie Maintenance" d="M900,500 Q950,480 1000,460"/>
-  <path id="voie9" class="rail voie Bloquee" d="M900,500 Q950,500 1000,500"/>
+      .panel {
+        width: 360px;
+        background: var(--panel);
+        padding: 16px;
+        box-sizing: border-box;
+        border-left: 1px solid rgba(255, 255, 255, 0.03)
+      }
 
-  <!-- Labels voies -->
-  <text class="label" x="100" y="95">1</text>
-  <text class="label" x="1000" y="145">10</text>
-  <text class="label" x="300" y="195">2</text>
-  <text class="label" x="350" y="225">3</text>
-  <text class="label" x="400" y="235">4</text>
-  <text class="label" x="400" y="255">5</text>
-  <text class="label" x="100" y="395">6</text>
-  <text class="label" x="100" y="445">7</text>
-  <text class="label" x="1000" y="455">8</text>
-  <text class="label" x="1000" y="495">9</text>
-</svg>
+      h2 {
+        margin: 4px 0 12px 0;
+        font-size: 16px
+      }
 
-<div id="info">Clique sur une voie pour voir les détails</div>
+      .section {
+        margin-bottom: 12px
+      }
 
-<script>
-  const info = document.getElementById("info");
-  document.querySelectorAll(".voie").forEach(v => {
-    v.addEventListener("click", () => {
-      let etat = "OK";
-      if(v.classList.contains("Maintenance")) etat="Maintenance";
-      else if(v.classList.contains("Bloquee")) etat="Bloquée";
-      info.textContent = `${v.id} → État : ${etat}`;
-    });
-  });
-</script>
+      .btn {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: #2b2f33;
+        color: #fff;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 13px
+      }
 
-</body>
+      .muted {
+        color: var(--muted);
+        font-size: 13px
+      }
+
+      .list {
+        max-height: 40vh;
+        overflow: auto;
+        margin-top: 8px
+      }
+
+      .item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px;
+        border-radius: 6px;
+        background: transparent;
+        align-items: center
+      }
+
+      .item:hover {
+        background: rgba(255, 255, 255, 0.02)
+      }
+
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px
+      }
+
+      /* SVG styles */
+      .rail {
+        stroke: var(--rail);
+        stroke-width: 4;
+        stroke-linecap: round
+      }
+
+      .rail-gap {
+        stroke: rgba(255, 255, 255, 0.06);
+        stroke-dasharray: 8 6
+      }
+
+      .switch-straight {
+        stroke: #f39c12;
+        stroke-width: 4
+      }
+
+      .switch-divert {
+        stroke: #e74c3c;
+        stroke-width: 4
+      }
+
+      .bay-free {
+        fill: #2ecc71
+      }
+
+      .bay-occupied {
+        fill: #e74c3c
+      }
+
+      .bay-maint {
+        fill: #f39c12
+      }
+
+      .train {
+        fill: #3498db;
+        stroke: #fff;
+        stroke-width: 1
+      }
+
+      .train-label {
+        fill: #fff;
+        font-size: 12px;
+        font-family: monospace
+      }
+
+      .clickable {
+        cursor: pointer
+      }
+
+      footer {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 8px
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="app">
+      <div class="svg-wrap">
+        <svg id="schematic" viewBox="0 0 1200 500" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 z" fill="#fff" />
+            </marker>
+          </defs>
+
+          <!-- Tunnel vertical (visuel) -->
+          <g id="tunnel">
+            <rect x="1088" y="80" width="16" height="320" fill="#000" opacity="0.95" rx="4" />
+            <text x="1100" y="72" fill="#fff" font-size="13" text-anchor="middle">Tunnel</text>
+          </g>
+
+          <!-- Tracks: three parallel tracks -->
+          <!-- Coordinates: tracks run left->right between x=120 and x=1080 -->
+          <g id="tracks">
+            <!-- Chaque voie est composée de deux rails parallèles -->
+            <!-- Voie 1 va jusqu'au tunnel (seule voie connectée au tunnel) -->
+            <g id="track1">
+              <!-- Voie 1 : uniquement entre le tunnel et le premier aiguillage (axe autour de x=360) -->
+              <line id="track1-railA" class="rail" x1="360" y1="114" x2="1088" y2="114" />
+              <line id="track1-railB" class="rail" x1="360" y1="126" x2="1088" y2="126" />
+            </g>
+            <!-- Voie 2 : continuité à gauche de la voie 1 (même ordonnée), commence à x=120 et rejoint x=360 -->
+            <g id="track2">
+              <line id="track2-railA" class="rail" x1="120" y1="114" x2="360" y2="114" />
+              <line id="track2-railB" class="rail" x1="120" y1="126" x2="360" y2="126" />
+            </g>
+            <!-- Voie 3 : en dessous et parallèle à la voie 2 -->
+            <g id="track3">
+              <line id="track3-railA" class="rail" x1="120" y1="194" x2="880" y2="194" />
+              <line id="track3-railB" class="rail" x1="120" y1="206" x2="880" y2="206" />
+            </g>
+            <!-- Voies additionnelles (voie4/5/6) branchant depuis un aiguillage 3-positions sur la voie 2 -->
+            <g id="track4">
+              <line id="track4-railA" class="rail" x1="120" y1="60" x2="240" y2="60" />
+              <line id="track4-railB" class="rail" x1="120" y1="72" x2="240" y2="72" />
+            </g>
+            <g id="track5">
+              <line id="track5-railA" class="rail" x1="120" y1="114" x2="240" y2="114" />
+              <line id="track5-railB" class="rail" x1="120" y1="126" x2="240" y2="126" />
+            </g>
+            <g id="track6">
+              <line id="track6-railA" class="rail" x1="120" y1="194" x2="240" y2="194" />
+              <line id="track6-railB" class="rail" x1="120" y1="206" x2="240" y2="206" />
+            </g>
+          </g>
+
+          <!-- Switch C: aiguillage 3-positions sur la voie 2 (haut/centre/bas) -->
+          <g id="switchC" class="clickable" data-state="centre">
+            <!-- centre (voie5) -->
+            <path id="C-center-upper" d="M240,114 L300,114" class="switch-straight" visibility="visible" />
+            <path id="C-center-lower" d="M240,126 L300,126" class="switch-straight" visibility="visible" />
+
+            <!-- top (voie4) -->
+            <path id="C-top-upper" d="M240,60 Q260,80 300,114" class="switch-divert" fill="none" visibility="hidden" />
+            <path id="C-top-lower" d="M240,72 Q260,92 300,126" class="switch-divert" fill="none" visibility="hidden" />
+
+            <!-- bottom (voie6) -->
+            <path id="C-bottom-upper" d="M240,114 Q260,140 300,194" class="switch-divert" fill="none"
+              visibility="hidden" />
+            <path id="C-bottom-lower" d="M240,126 Q260,152 300,206" class="switch-divert" fill="none"
+              visibility="hidden" />
+
+            <circle cx="240" cy="120" r="10" fill="#fff" opacity="0.06" />
+          </g>
+
+          <!-- Switches: each switch has two possible visual paths (straight vs diverging) -->
+          <!-- Switch A: connects track1 -> track2 around x=360 -->
+          <g id="switchA" class="clickable" data-state="straight" transform="translate(0,0)">
+            <!-- Aiguillage A: deux rails pour la position droite (vers voie2) -->
+            <path id="A-straight-upper" d="M300,114 L360,114" class="switch-straight" visibility="visible" />
+            <path id="A-straight-lower" d="M300,126 L360,126" class="switch-straight" visibility="visible" />
+
+            <!-- Aiguillage A: deux rails pour la déviation (vers voie3) -->
+            <path id="A-divert-upper" d="M300,114 Q340,154 360,194" class="switch-divert" fill="none"
+              visibility="hidden" />
+            <path id="A-divert-lower" d="M300,126 Q340,170 360,206" class="switch-divert" fill="none"
+              visibility="hidden" />
+
+            <circle cx="300" cy="120" r="10" fill="#fff" opacity="0.06" />
+          </g>
+
+          <!-- Switch B: connects track2 -> track3 around x=660 -->
+          <g id="switchB" class="clickable" data-state="straight">
+            <path id="B-straight" d="M600,200 L660,200" class="switch-straight" visibility="visible" />
+            <path id="B-divert" d="M600,200 Q640,220 660,280" class="switch-divert" fill="none" visibility="hidden" />
+            <circle cx="600" cy="200" r="10" fill="#fff" opacity="0.06" />
+          </g>
+
+          <!-- Maintenance bays (quais) on the right side next to track2 -->
+          <g id="bays">
+            <rect id="bay1" class="bay-free clickable" x="920" y="140" width="120" height="40" rx="6" />
+            <text x="980" y="168" text-anchor="middle" fill="#091018" font-size="13">Quai 1</text>
+
+            <rect id="bay2" class="bay-free clickable" x="920" y="200" width="120" height="40" rx="6" />
+            <text x="980" y="228" text-anchor="middle" fill="#091018" font-size="13">Quai 2</text>
+
+            <rect id="bay3" class="bay-free clickable" x="920" y="260" width="120" height="40" rx="6" />
+            <text x="980" y="288" text-anchor="middle" fill="#091018" font-size="13">Quai 3</text>
+          </g>
+
+          <!-- Trains: rendered dynamically -->
+          <g id="trains"></g>
+
+          <!-- Legend -->
+          <g transform="translate(30,360)">
+            <rect x="0" y="0" width="280" height="120" fill="#0f1315" rx="6" stroke="rgba(255,255,255,0.03)" />
+            <text x="12" y="22" fill="#fff" font-size="13">Légende</text>
+            <g transform="translate(12,34)">
+              <rect x="0" y="0" width="14" height="8" class="bay-free" />
+              <text x="22" y="8" fill="#bbb" font-size="12">Quai libre</text>
+            </g>
+            <g transform="translate(12,54)">
+              <rect x="0" y="0" width="14" height="8" class="bay-occupied" />
+              <text x="22" y="8" fill="#bbb" font-size="12">Quai occupé</text>
+            </g>
+            <g transform="translate(12,74)">
+              <rect x="0" y="0" width="14" height="8" class="bay-maint" />
+              <text x="22" y="8" fill="#bbb" font-size="12">Maintenance</text>
+            </g>
+          </g>
+
+        </svg>
+      </div>
+
+      <div class="panel">
+        <h2>Contrôles & état</h2>
+
+        <div class="section">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="btn" id="resetBtn">Réinitialiser positions</div>
+            <div class="muted">Cliquez sur un aiguillage pour changer d'état.</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <strong>Trains</strong>
+          <div class="list" id="trainList"></div>
+          <footer>Glissez un train le long d'une voie pour le déplacer.</footer>
+        </div>
+
+        <div class="section">
+          <strong>Quais</strong>
+          <div class="list" id="bayList"></div>
+          <footer>Cliquez sur un quai pour faire défiler ses statuts.</footer>
+        </div>
+
+        <div class="section">
+          <strong>Aiguillages</strong>
+          <div class="list">
+            <div class="item clickable" id="switchA-info">Switch A: <span id="switchA-state">droit</span></div>
+            <div class="item clickable" id="switchB-info">Switch B: <span id="switchB-state">droit</span></div>
+            <div class="item clickable" id="switchC-info">Switch C: <span id="switchC-state">centre</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+      // Modèle
+      // indices de voie :
+      // 0 = voie1 (tunnel→aiguillage),
+      // 1 = voie2 (branche principale à gauche du premier aiguillage),
+      // 2 = voie3 (branche en dessous)
+      // 3 = voie4 (haut - siding produit par switchC)
+      // 4 = voie5 (centre - continuation de voie2 via switchC)
+      // 5 = voie6 (bas - déviation vers bas via switchC)
+      const trackStarts = [360, 120, 120, 120, 120, 120];
+      const trackEnds = [1088, 360, 880, 240, 240, 240];
+      const trackYs = [120, 120, 200, 66, 120, 200];
+
+      const switches = {
+        A: { state: 'straight', group: document.getElementById('switchA') },
+        B: { state: 'straight', group: document.getElementById('switchB') },
+        C: { state: 'centre', group: document.getElementById('switchC') }
+      };
+      // positions x des aiguillages (seuils de décision)
+      const switchPositions = {
+        A: 360,
+        B: 660,
+        C: 240
+      };
+
+      const bays = [
+        { id: 'bay1', name: 'Quai 1', status: 0 }, // 0 free,1 occupied,2 maint
+        { id: 'bay2', name: 'Quai 2', status: 0 },
+        { id: 'bay3', name: 'Quai 3', status: 0 }
+      ];
+
+      const trainsModel = [
+        { id: 'T1', track: 0, x: 420 },
+        { id: 'T2', track: 1, x: 240 },
+        { id: 'T3', track: 2, x: 360 }
+      ];
+
+      const svg = document.getElementById('schematic');
+      const trainsLayer = document.getElementById('trains');
+
+      // helper: set visibility for switch
+      function renderSwitch(key) {
+        const s = switches[key];
+        // Special-case for switch A which has upper/lower paths for both straight and divert
+        if (key === 'A') {
+          const su = document.getElementById('A-straight-upper');
+          const sl = document.getElementById('A-straight-lower');
+          const du = document.getElementById('A-divert-upper');
+          const dl = document.getElementById('A-divert-lower');
+          if (s.state === 'straight') {
+            su.setAttribute('visibility', 'visible');
+            sl.setAttribute('visibility', 'visible');
+            du.setAttribute('visibility', 'hidden');
+            dl.setAttribute('visibility', 'hidden');
+          } else {
+            su.setAttribute('visibility', 'hidden');
+            sl.setAttribute('visibility', 'hidden');
+            du.setAttribute('visibility', 'visible');
+            dl.setAttribute('visibility', 'visible');
+          }
+        } else if (key === 'C') {
+          // switchC has three positions: 'haut', 'centre', 'bas'
+          const upU = document.getElementById('C-top-upper');
+          const upL = document.getElementById('C-top-lower');
+          const cU = document.getElementById('C-center-upper');
+          const cL = document.getElementById('C-center-lower');
+          const bU = document.getElementById('C-bottom-upper');
+          const bL = document.getElementById('C-bottom-lower');
+          if (s.state === 'centre') {
+            cU.setAttribute('visibility', 'visible');
+            cL.setAttribute('visibility', 'visible');
+            upU.setAttribute('visibility', 'hidden'); upL.setAttribute('visibility', 'hidden');
+            bU.setAttribute('visibility', 'hidden'); bL.setAttribute('visibility', 'hidden');
+          } else if (s.state === 'haut') {
+            upU.setAttribute('visibility', 'visible'); upL.setAttribute('visibility', 'visible');
+            cU.setAttribute('visibility', 'hidden'); cL.setAttribute('visibility', 'hidden');
+            bU.setAttribute('visibility', 'hidden'); bL.setAttribute('visibility', 'hidden');
+          } else {
+            // bas
+            bU.setAttribute('visibility', 'visible'); bL.setAttribute('visibility', 'visible');
+            cU.setAttribute('visibility', 'hidden'); cL.setAttribute('visibility', 'hidden');
+            upU.setAttribute('visibility', 'hidden'); upL.setAttribute('visibility', 'hidden');
+          }
+        } else {
+          // generic fallback for switches with single path ids
+          const straight = document.getElementById(key + '-straight');
+          const divert = document.getElementById(key + '-divert');
+          if (straight && divert) {
+            if (s.state === 'straight') {
+              straight.setAttribute('visibility', 'visible');
+              divert.setAttribute('visibility', 'hidden');
+            } else {
+              straight.setAttribute('visibility', 'hidden');
+              divert.setAttribute('visibility', 'visible');
+            }
+          }
+        }
+        const label = document.getElementById('switch' + key + '-state');
+        if (label) {
+          if (key === 'C') label.textContent = (s.state === 'centre') ? 'centre' : (s.state === 'haut' ? 'haut' : 'bas');
+          else label.textContent = (s.state === 'straight') ? 'droit' : 'dévié';
+        }
+      }
+
+      // toggle switch
+      function toggleSwitch(key) {
+        if (key === 'C') {
+          // cycle through haut -> centre -> bas -> haut
+          const order = ['haut', 'centre', 'bas'];
+          const cur = switches.C.state;
+          const next = order[(order.indexOf(cur) + 1) % order.length];
+          switches.C.state = next;
+        } else {
+          switches[key].state = (switches[key].state === 'straight') ? 'divert' : 'straight';
+        }
+        renderSwitch(key);
+      }
+
+      // render bays list and colors
+      function renderBays() {
+        bays.forEach(b => {
+          const el = document.getElementById(b.id);
+          el.classList.remove('bay-free', 'bay-occupied', 'bay-maint');
+          if (b.status === 0) el.classList.add('bay-free');
+          if (b.status === 1) el.classList.add('bay-occupied');
+          if (b.status === 2) el.classList.add('bay-maint');
+        });
+
+        const bayList = document.getElementById('bayList');
+        bayList.innerHTML = '';
+        bays.forEach((b, i) => {
+          const div = document.createElement('div');
+          div.className = 'item clickable';
+          const dot = document.createElement('span');
+          dot.className = 'status-dot';
+          if (b.status === 0) dot.style.background = '#2ecc71';
+          else if (b.status === 1) dot.style.background = '#e74c3c';
+          else dot.style.background = '#f39c12';
+          div.innerHTML = `<div style=\"display:flex;align-items:center\"><span class=\"status-dot\" style=\"background:${(b.status === 0 ? '#2ecc71' : (b.status === 1 ? '#e74c3c' : '#f39c12'))}\"></span><div>${b.name}</div></div><div class=\"muted\">${b.status === 0 ? 'Libre' : (b.status === 1 ? 'Occupé' : 'Maintenance')}</div>`;
+          div.onclick = () => { b.status = (b.status + 1) % 3; renderBays(); };
+          bayList.appendChild(div);
+        });
+      }
+
+      // render trains (draggable)
+      function renderTrains() {
+        trainsLayer.innerHTML = '';
+        trainsModel.forEach((t, idx) => {
+          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          g.setAttribute('data-id', t.id);
+          const cx = t.x;
+          const cy = trackYs[t.track];
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', cx);
+          circle.setAttribute('cy', cy);
+          circle.setAttribute('r', 12);
+          circle.setAttribute('class', 'train clickable');
+          circle.setAttribute('fill', '#3498db');
+          circle.setAttribute('stroke', '#fff');
+          circle.setAttribute('stroke-width', '1');
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', cx);
+          txt.setAttribute('y', cy + 4);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('class', 'train-label');
+          txt.textContent = t.id;
+
+          g.appendChild(circle);
+          g.appendChild(txt);
+          trainsLayer.appendChild(g);
+
+          // drag behavior
+          let dragging = false;
+          let pointerId = null;
+
+          circle.addEventListener('pointerdown', (ev) => {
+            ev.preventDefault();
+            dragging = true;
+            pointerId = ev.pointerId;
+            circle.setPointerCapture(pointerId);
+          });
+
+          circle.addEventListener('pointermove', (ev) => {
+            if (!dragging || ev.pointerId !== pointerId) return;
+            const pt = svg.createSVGPoint();
+            pt.x = ev.clientX; pt.y = ev.clientY;
+            const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+            // find nearest track index based on cursor Y
+            let nearestTrack = 0; let minD = Infinity;
+            trackYs.forEach((y, i) => { const d = Math.abs(y - loc.y); if (d < minD) { minD = d; nearestTrack = i; } });
+            // constrain x to the visible portion of the selected track
+            const minX = (trackStarts && trackStarts[nearestTrack]) ? trackStarts[nearestTrack] : 120;
+            const maxX = (trackEnds && trackEnds[nearestTrack]) ? trackEnds[nearestTrack] : 1088;
+            const nx = Math.max(minX, Math.min(maxX, loc.x));
+            // commit to model
+            t.x = nx; t.track = nearestTrack;
+            // update visuals
+            circle.setAttribute('cx', t.x);
+            circle.setAttribute('cy', trackYs[t.track]);
+            txt.setAttribute('x', t.x);
+            txt.setAttribute('y', trackYs[t.track] + 4);
+            updateTrainList();
+          });
+
+          window.addEventListener('pointerup', (ev) => {
+            if (!dragging) return;
+            if (ev.pointerId !== pointerId) return;
+            dragging = false;
+
+            // Routing rule: if a train comes from voie 1 and crosses the first switch position,
+            // decide the target voie depending on Switch A state:
+            // - Switch A 'straight' -> voie 2 (index 1)
+            // - Switch A 'divert'   -> voie 3 (index 2)
+            try {
+              const swAX = switchPositions.A;
+              // if train was on voie 1 (or close) and its x is left of the switch, route it
+              if (t.track === 0 && t.x < swAX) {
+                const dest = (switches.A.state === 'straight') ? 1 : 2;
+                t.track = dest;
+                // constrain x to destination track limits
+                const minX = (trackStarts && trackStarts[dest]) ? trackStarts[dest] : 120;
+                const maxX = (trackEnds && trackEnds[dest]) ? trackEnds[dest] : 1088;
+                t.x = Math.max(minX, Math.min(maxX, t.x));
+                circle.setAttribute('cx', t.x);
+                circle.setAttribute('cy', trackYs[t.track]);
+                txt.setAttribute('x', t.x);
+                txt.setAttribute('y', trackYs[t.track] + 4);
+              }
+              // Additional routing: if a train is on voie2 and crosses switchC position, route according to switchC
+              const swCX = switchPositions.C;
+              if (t.track === 1 && t.x < swCX) {
+                // switch C: 'haut' -> voie4 (index 3), 'centre' -> voie5 (index 4), 'bas' -> voie6 (index 5)
+                let destC = 4;
+                if (switches.C.state === 'haut') destC = 3;
+                else if (switches.C.state === 'bas') destC = 5;
+                t.track = destC;
+                const minXC = (trackStarts && trackStarts[destC]) ? trackStarts[destC] : 120;
+                const maxXC = (trackEnds && trackEnds[destC]) ? trackEnds[destC] : 1088;
+                t.x = Math.max(minXC, Math.min(maxXC, t.x));
+                circle.setAttribute('cx', t.x);
+                circle.setAttribute('cy', trackYs[t.track]);
+                txt.setAttribute('x', t.x);
+                txt.setAttribute('y', trackYs[t.track] + 4);
+              }
+              circle.releasePointerCapture(pointerId);
+            } catch (e) { try { circle.releasePointerCapture(pointerId); } catch (e2) { } }
+
+            pointerId = null;
+          });
+
+        });
+
+        updateTrainList();
+      }
+
+      // update train list in panel
+      function updateTrainList() {
+        const list = document.getElementById('trainList');
+        list.innerHTML = '';
+        trainsModel.forEach(t => {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.innerHTML = `<div>${t.id} <span class=\"muted\">(voie ${t.track + 1})</span></div><div class=\"muted\">x=${Math.round(t.x)}</div>`;
+          list.appendChild(div);
+        });
+      }
+
+      // reset positions
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        trainsModel[0].track = 0; trainsModel[0].x = 420;
+        trainsModel[1].track = 1; trainsModel[1].x = 240;
+        trainsModel[2].track = 2; trainsModel[2].x = 360;
+        renderTrains();
+        bays.forEach(b => b.status = 0);
+        renderBays();
+        switches.A.state = 'straight'; switches.B.state = 'straight'; switches.C.state = 'centre';
+        renderSwitch('A'); renderSwitch('B'); renderSwitch('C');
+      });
+
+      // wire switches clickable
+      document.getElementById('switchA').addEventListener('click', () => { toggleSwitch('A'); });
+      document.getElementById('switchB').addEventListener('click', () => { toggleSwitch('B'); });
+      document.getElementById('switchC').addEventListener('click', () => { toggleSwitch('C'); });
+      document.getElementById('switchA-info').addEventListener('click', () => { toggleSwitch('A'); });
+      document.getElementById('switchB-info').addEventListener('click', () => { toggleSwitch('B'); });
+      document.getElementById('switchC-info').addEventListener('click', () => { toggleSwitch('C'); });
+
+      // bays click handlers
+      bays.forEach(b => {
+        document.getElementById(b.id).addEventListener('click', () => { b.status = (b.status + 1) % 3; renderBays(); });
+      });
+
+      // initial render
+      renderSwitch('A'); renderSwitch('B'); renderSwitch('C'); renderBays(); renderTrains();
+
+      // Expose a few helpers to console for debugging
+      window.__atelier = { trainsModel, bays, switches, renderTrains, renderBays };
+    </script>
+  </body>
+
 </html>
-
-
-Voie1 <---------------\  -----> Voie10
-Voie2 <-------/ <----- \ <----- / ------------ tunnel
-Voie3 <------/         /       /
-Voie4 <---------------/       /
-Voie5 <--------------/       /
-Voie6 <---------------------/     /---------> Voie9
-Voie7 <--------------------/-----/---------> Voie8
